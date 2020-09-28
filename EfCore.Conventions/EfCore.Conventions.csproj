@@ -13,11 +13,11 @@
         <PackageIconUrl>https://user-images.githubusercontent.com/5763993/64020551-18804500-cb5c-11e9-9259-7300faf6dc93.png</PackageIconUrl>
         <RepositoryUrl>https://github.com/chaowlert/EfCore.Conventions</RepositoryUrl>
         <PackageTags>efcore convention</PackageTags>
+        <Version>2.0.2</Version>
     </PropertyGroup>
 
     <ItemGroup>
-      <PackageReference Include="Microsoft.EntityFrameworkCore" Version="2.0.0" />
-      <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="2.0.0" />
+      <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="3.1.0" />
     </ItemGroup>
 
 </Project>

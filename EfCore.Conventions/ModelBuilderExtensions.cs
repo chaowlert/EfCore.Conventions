@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Linq;
@@ -16,7 +17,7 @@ namespace Microsoft.EntityFrameworkCore
         {
             foreach (var type in builder.Model.GetEntityTypes())
             {
-                type.Relational().TableName = func(type);
+                type.SetTableName(func(type));
             }
 
             return builder;
@@ -50,6 +51,60 @@ namespace Microsoft.EntityFrameworkCore
 
                     action(type, property);
                 }
+            });
+        }
+
+        public static ModelBuilder AddNavigationConventions(this ModelBuilder builder, params string[] conventions)
+        {
+            return builder.ApplyAction(type =>
+            {
+                var keys = type.FindPrimaryKey()?.Properties
+                    .Select(it => it.Name)
+                    .ToList();
+                if (keys == null || keys.Count == 0)
+                    return;
+                if (keys.Count == 1 && string.Equals(keys[0], "id", StringComparison.OrdinalIgnoreCase))
+                    return;
+                foreach (var nav in type.GetNavigations())
+                {
+                    var fk = nav.ForeignKey;
+                    if (fk.PrincipalEntityType != type || fk.PrincipalToDependent == null)
+                        continue;
+                    if (fk.Properties.Any(it => it.PropertyInfo != null))
+                        continue;
+
+                    bool addedFk = false;
+                    var navigationPropertyName =
+                        fk.DependentToPrincipal?.PropertyInfo.Name ?? "[navigationPropertyName]";
+                    foreach (var convention in conventions)
+                    {
+                        if (addedFk)
+                            break;
+                        var fks = keys
+                            .Select(key =>
+                                convention.Replace("[principalEntityName]", type.ClrType.Name)
+                                    .Replace("[principalPropertyName]", key)
+                                    .Replace("[navigationPropertyName]", navigationPropertyName))
+                            .ToArray();
+
+                        if (fks.Except(fk.DeclaringEntityType.GetProperties().Select(it => it.Name)).Any())
+                            continue;
+                        if (fk.PrincipalToDependent.IsCollection())
+                        {
+                            addedFk = true;
+                            builder.Entity(type.ClrType).HasMany(fk.PrincipalToDependent.Name)
+                                .WithOne()
+                                .HasForeignKey(fks);
+                        }
+                        else
+                        {
+                            builder.Entity(type.ClrType).HasOne(fk.PrincipalToDependent.Name)
+                                .WithOne()
+                                .HasForeignKey(fk.DeclaringEntityType.Name, fks);
+                        }
+                    }
+                }
+
             });
         }
 
@@ -107,7 +162,7 @@ namespace Microsoft.EntityFrameworkCore
                     var defaultValue = property.PropertyInfo?.GetCustomAttribute<DefaultValueAttribute>();
                     if (defaultValue != null)
                     {
-                        property.Relational().DefaultValue = defaultValue.Value;
+                        property.SetDefaultValue(defaultValue.Value);
                     }
                 }
             });
